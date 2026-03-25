@@ -1,8 +1,8 @@
 -- ========================================== --
--- NVT VIP HUB - EXPERT EDITION (MOBILE OPTIMIZED)
+-- NVT VIP HUB - EXPERT EDITION (FIXED AUTO Z)
 -- ========================================== --
 
-task.wait(1) -- Đợi game ổn định luồng trước khi inject
+task.wait(1) 
 
 local Services = setmetatable({}, {
     __index = function(_, service)
@@ -34,11 +34,8 @@ end
 
 local GuiParent = GetSafeUIParent()
 
--- Xóa rác từ phiên bản cũ (nếu có)
 for _, child in ipairs(GuiParent:GetChildren()) do
-    if child.Name == "NVT_Expert_Hub" then
-        child:Destroy()
-    end
+    if child.Name == "NVT_Expert_Hub" then child:Destroy() end
 end
 
 -- ================= KHỞI TẠO GIAO DIỆN ================= --
@@ -49,7 +46,6 @@ HubGui.IgnoreGuiInset = true
 HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 HubGui.Parent = GuiParent
 
--- Tấm rèm đen (tiết kiệm pin)
 local BlackScreen = Instance.new("Frame")
 BlackScreen.Size = UDim2.new(1, 0, 1, 0)
 BlackScreen.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -57,17 +53,15 @@ BlackScreen.Visible = false
 BlackScreen.ZIndex = 999
 BlackScreen.Parent = HubGui
 
--- Hàm tiện ích tạo UI
 local function Create(className, properties)
     local inst = Instance.new(className)
     for k, v in pairs(properties) do inst[k] = v end
     return inst
 end
 
--- Nút mở Menu (NVT)
 local OpenBtn = Create("TextButton", {
     Size = UDim2.new(0, 50, 0, 50),
-    Position = UDim2.new(0, 50, 0, 50), -- Đặt rõ ràng ở góc trái trên
+    Position = UDim2.new(0, 50, 0, 50), 
     BackgroundColor3 = Color3.fromRGB(15, 15, 15),
     Text = "NVT",
     TextColor3 = Color3.fromRGB(0, 255, 128),
@@ -80,7 +74,6 @@ local OpenBtn = Create("TextButton", {
 })
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
--- Khung Menu Chính
 local MainFrame = Create("Frame", {
     Size = UDim2.new(0, 260, 0, 250),
     Position = UDim2.new(0.5, -130, 0.5, -125),
@@ -94,7 +87,6 @@ local MainFrame = Create("Frame", {
 })
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
--- Tiêu đề
 Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 40),
     BackgroundTransparency = 1,
@@ -114,7 +106,6 @@ Create("Frame", {
     Parent = MainFrame
 })
 
--- Hiển thị FPS & Ping (Tránh lỗi chia 0)
 local StatsLabel = Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 20),
     Position = UDim2.new(0, 0, 0, 45),
@@ -158,7 +149,6 @@ local function CreateToggle(yPos, text, varName, callback)
     end)
 end
 
--- Tính năng 1: Siêu tối ưu
 CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     BlackScreen.Visible = isOn
     if isOn then
@@ -173,10 +163,8 @@ CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     end
 end)
 
--- Tính năng 2: Auto Z
 CreateToggle(125, "Bật Auto Control (Z)", "AutoZ", function() end)
 
--- Nút Đóng
 local CloseBtn = Create("TextButton", {
     Size = UDim2.new(0.9, 0, 0, 40),
     Position = UDim2.new(0.05, 0, 0, 185),
@@ -195,7 +183,6 @@ CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
 -- ================= VÒNG LẶP HỆ THỐNG ================= --
 
--- Anti AFK
 pcall(function()
     LocalPlayer.Idled:Connect(function()
         VirtualUser:CaptureController()
@@ -203,14 +190,10 @@ pcall(function()
     end)
 end)
 
--- Cập nhật thông số FPS/Ping an toàn
 RunService.RenderStepped:Connect(function()
     local ping = 0
     pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-    
-    -- Dùng hàm GetRealPhysicsFPS để đo FPS chuẩn hơn trên điện thoại
     local fps = math.floor(Workspace:GetRealPhysicsFPS())
-    
     if fps <= 15 then
         StatsLabel.Text = "FPS: <font color='rgb(255,80,80)'>"..fps.."</font> | Ping: "..ping.."ms"
     else
@@ -218,14 +201,14 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Vòng lặp Auto Z thông minh
+-- VÒNG LẶP AUTO Z SIÊU CẤP
 task.spawn(function()
     while task.wait(30) do
         if State.AutoZ and LocalPlayer.Character then
             local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             local tool = nil
             
-            -- Quét kho đồ và trên tay
+            -- Tìm kiếm vũ khí
             for _, v in ipairs(LocalPlayer.Backpack:GetChildren()) do
                 if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then tool = v break end
             end
@@ -237,22 +220,38 @@ task.spawn(function()
             
             if humanoid and tool then
                 pcall(function()
+                    -- 1. Trang bị vũ khí lên tay
                     humanoid:EquipTool(tool)
-                    task.wait(1.5) -- Cho game thời gian gắn tool vào tay
+                    task.wait(1.5) 
+                    
+                    -- 2. Tấn công lớp 1: Bấm phím gốc của Executor
+                    if keypress then
+                        pcall(function()
+                            keypress(0x5A) -- Mã Hex của phím Z
+                            task.wait(0.5)
+                            keyrelease(0x5A)
+                        end)
+                    end
+                    
+                    -- 3. Tấn công lớp 2: Dùng Virtual Input Manager
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                    task.wait(0.1)
+                    task.wait(0.5) -- Đợi nửa giây để gồng chiêu
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+                    
+                    -- 4. Tấn công lớp 3: Ép Click chuột để định hướng/nhả chiêu
+                    task.wait(0.1)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    task.wait(0.1)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+
+                    -- Bắn thông báo để kiểm tra xem script có chạy đến bước này không
+                    StarterGui:SetCore("SendNotification", {
+                        Title = "Auto Skill",
+                        Text = "Đã thi triển chiêu Z!",
+                        Duration = 3
+                    })
                 end)
             end
         end
     end
-end)
-
--- Gửi thông báo hoàn tất
-pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "NVT HUB ACTIVE",
-        Text = "Hệ thống đã chạy, vui lòng tìm nút NVT trên màn hình.",
-        Duration = 5
-    })
 end)
