@@ -1,172 +1,161 @@
--- ==========================================
--- TRNH V. THANG HUB - VIP AUTO RAID (Sinh Tồn + Chọn Vũ Khí)
--- ==========================================
-
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
-_G.AutoRaid = false
-_G.SelectedWeapon = ""
-_G.HideHealth = 30 
-_G.IsHiding = false 
-_G.SafeZone = CFrame.new(0, 5000, 0) 
+-- 1. Anti-AFK
+local VirtualUser = game:GetService("VirtualUser")
+Players.LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0),Workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0),Workspace.CurrentCamera.CFrame)
+end)
 
-_G.UseZ = false
-_G.UseX = false
-_G.UseC = false
-_G.UseV = false
-_G.UseE = false
+-- Xóa UI cũ nếu lỡ chạy lại script
+if CoreGui:FindFirstChild("ThangHub_FPS_Saver") then
+    CoreGui.ThangHub_FPS_Saver:Destroy()
+end
 
-local Window = Rayfield:CreateWindow({
-   Name = "Trnh V. Thang Hub 👑 | VIP",
-   LoadingTitle = "Đang tải hệ thống VIP...",
-   LoadingSubtitle = "Phiên bản Độc Quyền",
-   ConfigurationSaving = { Enabled = false }
-})
+-- 2. Tạo giao diện
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ThangHub_FPS_Saver"
+ScreenGui.Parent = CoreGui
+ScreenGui.IgnoreGuiInset = true 
 
-local RaidTab = Window:CreateTab("Auto Raid", 4483345998)
+-- Lớp rèm đen che màn hình
+local BlackFrame = Instance.new("Frame")
+BlackFrame.Parent = ScreenGui
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) 
+BlackFrame.Size = UDim2.new(1, 0, 1, 0) 
+BlackFrame.Visible = false 
+BlackFrame.ZIndex = 1 
 
--- [TÍNH NĂNG CHỌN VŨ KHÍ]
-local WeaponList = {}
-local WeaponDropdown = RaidTab:CreateDropdown({
-   Name = "Chọn Vũ Khí Để Farm",
-   Options = {"Chưa tải vũ khí"},
-   CurrentOption = {"Chưa tải vũ khí"},
-   MultipleOptions = false,
-   Flag = "WeaponSelect",
-   Callback = function(Option)
-      _G.SelectedWeapon = Option[1]
-   end,
-})
+-- NÚT 1: Tắt 3D & Dọn RAM
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.Position = UDim2.new(0, 20, 0, 50)
+ToggleButton.Size = UDim2.new(0, 140, 0, 40)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "Tắt 3D & Dọn RAM"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 13
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.ZIndex = 2 
 
-RaidTab:CreateButton({
-   Name = "Làm Mới Danh Sách Vũ Khí",
-   Callback = function()
-      table.clear(WeaponList)
-      for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-         if tool:IsA("Tool") then table.insert(WeaponList, tool.Name) end
-      end
-      local char = LocalPlayer.Character
-      if char then
-          for _, tool in pairs(char:GetChildren()) do
-             if tool:IsA("Tool") then table.insert(WeaponList, tool.Name) end
-          end
-      end
-      WeaponDropdown:Refresh(WeaponList)
-   end,
-})
+local UICorner1 = Instance.new("UICorner")
+UICorner1.CornerRadius = UDim.new(0, 8)
+UICorner1.Parent = ToggleButton
 
-RaidTab:CreateToggle({
-   Name = "🔥 Bật/Tắt Auto Raid 🔥",
-   CurrentValue = false,
-   Flag = "ToggleAutoRaid",
-   Callback = function(Value)
-      _G.AutoRaid = Value
-   end,
-})
+-- NÚT 2: Bật/Tắt Auto Skill Z (Nằm dưới nút 1)
+local AutoSkillButton = Instance.new("TextButton")
+AutoSkillButton.Parent = ScreenGui
+AutoSkillButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+AutoSkillButton.Position = UDim2.new(0, 20, 0, 100)
+AutoSkillButton.Size = UDim2.new(0, 140, 0, 40)
+AutoSkillButton.Font = Enum.Font.GothamBold
+AutoSkillButton.Text = "Bật Auto Control (Z)"
+AutoSkillButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoSkillButton.TextSize = 13
+AutoSkillButton.Active = true
+AutoSkillButton.Draggable = true
+AutoSkillButton.ZIndex = 2 
 
-RaidTab:CreateSlider({
-   Name = "Mức máu đi trốn (%)",
-   Info = "Dưới mức này sẽ bay lên trời trốn",
-   Min = 10,
-   Max = 90,
-   CurrentValue = 30,
-   Flag = "SliderHealth",
-   Callback = function(Value)
-      _G.HideHealth = Value
-   end,
-})
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 8)
+UICorner2.Parent = AutoSkillButton
 
-local SkillTab = Window:CreateTab("Cài Đặt Chiêu", 4483345998)
-SkillTab:CreateToggle({Name = "Tự động xả chiêu Z", CurrentValue = false, Flag = "Z", Callback = function(v) _G.UseZ = v end})
-SkillTab:CreateToggle({Name = "Tự động xả chiêu X", CurrentValue = false, Flag = "X", Callback = function(v) _G.UseX = v end})
-SkillTab:CreateToggle({Name = "Tự động xả chiêu C", CurrentValue = false, Flag = "C", Callback = function(v) _G.UseC = v end})
-SkillTab:CreateToggle({Name = "Tự động xả chiêu V", CurrentValue = false, Flag = "V", Callback = function(v) _G.UseV = v end})
-SkillTab:CreateToggle({Name = "Tự động xả chiêu E", CurrentValue = false, Flag = "E", Callback = function(v) _G.UseE = v end})
+local isOptimized = false
+local isAutoSkill = false
 
-local function EquipTargetWeapon()
-    local char = LocalPlayer.Character
-    if char and _G.SelectedWeapon ~= "" and _G.SelectedWeapon ~= "Chưa tải vũ khí" then
-        local toolInBackpack = LocalPlayer.Backpack:FindFirstChild(_G.SelectedWeapon)
-        if toolInBackpack then
-            char.Humanoid:EquipTool(toolInBackpack)
+-- 3. Hàm siêu dọn rác
+local function OptimizeRAM()
+    Lighting.GlobalShadows = false
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+            v:Destroy()
+        end
+    end
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+            v.Material = Enum.Material.SmoothPlastic
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
         end
     end
 end
 
-local function FireSkill(Key)
-    VirtualInputManager:SendKeyEvent(true, Key, false, game)
-    task.wait(0.05)
-    VirtualInputManager:SendKeyEvent(false, Key, false, game)
-end
-
-local function AutoSpamSkills()
-    if _G.UseZ then FireSkill(Enum.KeyCode.Z) end
-    if _G.UseX then FireSkill(Enum.KeyCode.X) end
-    if _G.UseC then FireSkill(Enum.KeyCode.C) end
-    if _G.UseV then FireSkill(Enum.KeyCode.V) end
-    if _G.UseE then FireSkill(Enum.KeyCode.E) end
-end
-
-local function GetTarget()
-    local MonsterFolder = workspace:FindFirstChild("Monster") or workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs")
-    if not MonsterFolder then return nil end
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
-    local closest, shortest = nil, math.huge
-    for _, mob in pairs(MonsterFolder:GetDescendants()) do
-        if mob:IsA("Model") and mob ~= char then
-            local mobRoot = mob:FindFirstChild("HumanoidRootPart")
-            local mobHum = mob:FindFirstChild("Humanoid")
-            if mobRoot and mobHum and mobHum.Health > 0 then
-                local dist = (mobRoot.Position - char.HumanoidRootPart.Position).Magnitude
-                if dist < shortest then closest, shortest = mob, dist end
-            end
-        end
-    end
-    return closest
-end
-
+-- 4. Vòng lặp Auto dùng chiêu Z của Control mỗi 30s
 task.spawn(function()
-    while task.wait() do
-        if _G.AutoRaid then
-            local char = LocalPlayer.Character
-            if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
-            local Hum = char:FindFirstChild("Humanoid")
-            local Root = char.HumanoidRootPart
-            
-            if Hum then
-                local hpPercent = (Hum.Health / Hum.MaxHealth) * 100
-                if hpPercent <= _G.HideHealth then
-                    _G.IsHiding = true
-                elseif hpPercent >= 95 then 
-                    _G.IsHiding = false
+    local player = Players.LocalPlayer
+    while task.wait(30) do
+        -- Chỉ hoạt động khi bạn bấm nút bật Auto (Nút 2)
+        if isAutoSkill then 
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                -- Tìm Control trong balo hoặc tay
+                local tool = nil
+                for _, v in pairs(player.Backpack:GetChildren()) do
+                    if v.Name:match("Control") then tool = v break end
+                end
+                if not tool then
+                    for _, v in pairs(character:GetChildren()) do
+                        if v.Name:match("Control") then tool = v break end
+                    end
                 end
                 
-                if _G.IsHiding then
-                    Root.CFrame = _G.SafeZone
-                    Root.Velocity = Vector3.new(0,0,0)
-                    continue 
-                end
-            end
-            
-            local TargetMob = GetTarget()
-            if TargetMob then
-                local MobRoot = TargetMob:FindFirstChild("HumanoidRootPart")
-                if MobRoot then
-                    Root.CFrame = MobRoot.CFrame * CFrame.new(0, 6, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    Root.Velocity = Vector3.new(0,0,0)
+                if humanoid and tool then
+                    humanoid:EquipTool(tool)
+                    task.wait(0.5) 
                     
-                    EquipTargetWeapon()
-                    
-                    local equippedTool = char:FindFirstChild(_G.SelectedWeapon)
-                    if equippedTool then equippedTool:Activate() end
-                    
-                    AutoSpamSkills()
+                    -- Bấm phím Z
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
                 end
             end
         end
+    end
+end)
+
+-- 5. Lệnh thực thi Nút 1 (Đen màn hình)
+ToggleButton.MouseButton1Click:Connect(function()
+    isOptimized = not isOptimized
+    
+    if isOptimized then
+        OptimizeRAM() 
+        setfpscap(5)
+        RunService:Set3dRenderingEnabled(false)
+        settings().Rendering.QualityLevel = "Level01"
+        BlackFrame.Visible = true 
+        
+        ToggleButton.Text = "Bật lại 3D & 60 FPS"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40) -- Chuyển màu đỏ
+    else
+        setfpscap(60) 
+        RunService:Set3dRenderingEnabled(true)
+        settings().Rendering.QualityLevel = "Automatic" 
+        BlackFrame.Visible = false 
+        
+        ToggleButton.Text = "Tắt 3D & Dọn RAM"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    end
+end)
+
+-- 6. Lệnh thực thi Nút 2 (Auto Z)
+AutoSkillButton.MouseButton1Click:Connect(function()
+    isAutoSkill = not isAutoSkill
+    
+    if isAutoSkill then
+        AutoSkillButton.Text = "Đang Auto Z (Tắt)"
+        AutoSkillButton.BackgroundColor3 = Color3.fromRGB(40, 160, 40) -- Chuyển màu xanh lá
+    else
+        AutoSkillButton.Text = "Bật Auto Control (Z)"
+        AutoSkillButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     end
 end)
