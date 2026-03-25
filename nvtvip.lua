@@ -2,32 +2,40 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local VirtualUser = game:GetService("VirtualUser")
 local Stats = game:GetService("Stats")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 
--- Fix lỗi ẩn UI trên Executor điện thoại (Tự động chọn nơi an toàn để gắn Menu)
-local guiParent
-pcall(function() guiParent = game:GetService("CoreGui") end)
+-- ================= TÌM NƠI ĐẶT UI AN TOÀN NHẤT ================= --
+local guiParent = nil
+pcall(function() if gethui then guiParent = gethui() end end)
+if not guiParent then pcall(function() guiParent = game:GetService("CoreGui") end) end
 if not guiParent or not pcall(function() local _ = guiParent.Name end) then
     guiParent = player:WaitForChild("PlayerGui")
 end
 
--- Xóa Hub cũ nếu có
-if guiParent:FindFirstChild("NVTVIP_Hub") then
-    guiParent.NVTVIP_Hub:Destroy()
+-- Xóa Hub cũ tránh trùng lặp
+for _, v in pairs(guiParent:GetChildren()) do
+    if v.Name == "NVTVIP_Hub" then v:Destroy() end
 end
+
+-- Bắn thông báo xác nhận script đã chạy
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "NVT VIP HUB",
+        Text = "Script đã load thành công! Tìm nút NVT.",
+        Duration = 5
+    })
+end)
 
 -- ================= CẤU TRÚC GIAO DIỆN (UI) ================= --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NVTVIP_Hub"
 ScreenGui.Parent = guiParent
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false -- Giữ UI khi nhân vật chết
+ScreenGui.ResetOnSpawn = false
 
--- 1. Tấm rèm đen
 local BlackScreen = Instance.new("Frame")
 BlackScreen.Size = UDim2.new(1, 0, 1, 0)
 BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -35,7 +43,7 @@ BlackScreen.Visible = false
 BlackScreen.ZIndex = 1
 BlackScreen.Parent = ScreenGui
 
--- 2. Nút Logo thu gọn (Bật/Tắt Menu)
+-- Nút Logo NVT
 local OpenButton = Instance.new("TextButton")
 OpenButton.Size = UDim2.new(0, 45, 0, 45)
 OpenButton.Position = UDim2.new(0, 15, 0, 15)
@@ -48,12 +56,9 @@ OpenButton.Draggable = true
 OpenButton.Active = true
 OpenButton.ZIndex = 10
 OpenButton.Parent = ScreenGui
+Instance.new("UICorner", OpenButton).CornerRadius = UDim.new(1, 0) 
 
-local OpenCorner = Instance.new("UICorner")
-OpenCorner.CornerRadius = UDim.new(1, 0) 
-OpenCorner.Parent = OpenButton
-
--- 3. Cửa sổ Menu chính
+-- Cửa sổ Menu
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 260, 0, 240) 
 MainFrame.Position = UDim2.new(0.5, -130, 0.5, -120)
@@ -61,13 +66,10 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Draggable = true
 MainFrame.Active = true
-MainFrame.Visible = false -- Mặc định ẩn, chờ bấm nút NVT
+MainFrame.Visible = false
 MainFrame.ZIndex = 10
 MainFrame.Parent = ScreenGui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
 -- Tiêu đề Menu
 local Title = Instance.new("TextLabel")
@@ -101,7 +103,6 @@ StatsLabel.ZIndex = 11
 StatsLabel.Parent = MainFrame
 
 -- ================= CHỨC NĂNG & NÚT BẤM ================= --
-
 local function CreateToggle(yPos, text, callback)
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Size = UDim2.new(0.9, 0, 0, 38)
@@ -113,21 +114,13 @@ local function CreateToggle(yPos, text, callback)
     ToggleBtn.TextSize = 13
     ToggleBtn.ZIndex = 11
     ToggleBtn.Parent = MainFrame
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
-    Corner.Parent = ToggleBtn
+    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
     local state = false
     ToggleBtn.MouseButton1Click:Connect(function()
         state = not state
-        if state then
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
-            ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        else
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
+        ToggleBtn.BackgroundColor3 = state and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(40, 40, 40)
+        ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
         callback(state)
     end)
 end
@@ -137,25 +130,23 @@ local isAutoZ = false
 -- Nút 1: Màn Đen & Dọn RAM
 CreateToggle(75, "Bật Màn Đen & Dọn RAM (5 FPS)", function(state)
     if state then
-        Lighting.GlobalShadows = false
-        for _, v in pairs(Lighting:GetChildren()) do
-            if v:IsA("PostEffect") then v:Destroy() end
-        end
+        pcall(function() Lighting.GlobalShadows = false end)
+        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then pcall(function() v:Destroy() end) end end
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
-                v.Material = Enum.Material.SmoothPlastic
+                pcall(function() v.Material = Enum.Material.SmoothPlastic end)
             elseif v:IsA("Texture") or v:IsA("Decal") then
-                v:Destroy()
+                pcall(function() v:Destroy() end)
             end
         end
-        setfpscap(5)
-        RunService:Set3dRenderingEnabled(false)
-        settings().Rendering.QualityLevel = 1
+        pcall(function() setfpscap(5) end)
+        pcall(function() RunService:Set3dRenderingEnabled(false) end)
+        pcall(function() settings().Rendering.QualityLevel = 1 end)
         BlackScreen.Visible = true
     else
-        setfpscap(60)
-        RunService:Set3dRenderingEnabled(true)
-        settings().Rendering.QualityLevel = "Automatic"
+        pcall(function() setfpscap(60) end)
+        pcall(function() RunService:Set3dRenderingEnabled(true) end)
+        pcall(function() settings().Rendering.QualityLevel = "Automatic" end)
         BlackScreen.Visible = false
     end
 end)
@@ -176,35 +167,27 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.TextSize = 13
 CloseBtn.ZIndex = 11
 CloseBtn.Parent = MainFrame
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
-CloseCorner.Parent = CloseBtn
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 -- ================= SỰ KIỆN & VÒNG LẶP ================= --
+OpenButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
-OpenButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
+-- Anti-AFK an toàn
+pcall(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    player.Idled:Connect(function()
+        VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    end)
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-end)
-
--- Anti-AFK
-player.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-end)
-
--- Cập nhật Live FPS & Ping (Đã fix an toàn)
+-- Cập nhật Live FPS & Ping
 RunService.RenderStepped:Connect(function(step)
     local fps = (step > 0) and math.floor(1 / step) or 0
     local ping = 0
-    pcall(function()
-        ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-    end)
+    pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
     
     if fps <= 15 then
         StatsLabel.Text = "FPS: <font color='rgb(255,100,100)'>"..fps.."</font> | Ping: "..ping.."ms"
@@ -214,33 +197,31 @@ RunService.RenderStepped:Connect(function(step)
     StatsLabel.RichText = true
 end)
 
--- Vòng lặp Auto Z
+-- Vòng lặp Auto Z an toàn
 task.spawn(function()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
     while task.wait(30) do
         if isAutoZ and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local tool = nil
             
             for _, v in pairs(player.Backpack:GetChildren()) do
-                if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then
-                    tool = v break
-                end
+                if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then tool = v break end
             end
             if not tool then
                 for _, v in pairs(player.Character:GetChildren()) do
-                    if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then
-                        tool = v break
-                    end
+                    if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then tool = v break end
                 end
             end
             
             if humanoid and tool then
-                humanoid:EquipTool(tool)
-                task.wait(1.5)
-                
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                task.wait(0.2)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+                pcall(function()
+                    humanoid:EquipTool(tool)
+                    task.wait(1.5)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
+                    task.wait(0.2)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+                end)
             end
         end
     end
