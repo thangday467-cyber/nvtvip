@@ -1,161 +1,241 @@
 local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-
--- 1. Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
-Players.LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0),Workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0),Workspace.CurrentCamera.CFrame)
-end)
+local Stats = game:GetService("Stats")
 
--- Xóa UI cũ nếu lỡ chạy lại script
-if CoreGui:FindFirstChild("ThangHub_FPS_Saver") then
-    CoreGui.ThangHub_FPS_Saver:Destroy()
+local player = Players.LocalPlayer
+
+-- Xóa Hub cũ nếu có
+if CoreGui:FindFirstChild("NVTVIP_Hub") then
+    CoreGui.NVTVIP_Hub:Destroy()
 end
 
--- 2. Tạo giao diện
+-- ================= CẤU TRÚC GIAO DIỆN (UI) ================= --
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ThangHub_FPS_Saver"
+ScreenGui.Name = "NVTVIP_Hub"
 ScreenGui.Parent = CoreGui
-ScreenGui.IgnoreGuiInset = true 
+ScreenGui.IgnoreGuiInset = true
 
--- Lớp rèm đen che màn hình
-local BlackFrame = Instance.new("Frame")
-BlackFrame.Parent = ScreenGui
-BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) 
-BlackFrame.Size = UDim2.new(1, 0, 1, 0) 
-BlackFrame.Visible = false 
-BlackFrame.ZIndex = 1 
+-- 1. Tấm rèm đen
+local BlackScreen = Instance.new("Frame")
+BlackScreen.Size = UDim2.new(1, 0, 1, 0)
+BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackScreen.Visible = false
+BlackScreen.ZIndex = 1
+BlackScreen.Parent = ScreenGui
 
--- NÚT 1: Tắt 3D & Dọn RAM
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Parent = ScreenGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.Position = UDim2.new(0, 20, 0, 50)
-ToggleButton.Size = UDim2.new(0, 140, 0, 40)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "Tắt 3D & Dọn RAM"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 13
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-ToggleButton.ZIndex = 2 
+-- 2. Nút Logo thu gọn (Bật/Tắt Menu)
+local OpenButton = Instance.new("TextButton")
+OpenButton.Size = UDim2.new(0, 45, 0, 45)
+OpenButton.Position = UDim2.new(0, 15, 0, 15)
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenButton.Text = "NVT"
+OpenButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.TextSize = 14
+OpenButton.Draggable = true
+OpenButton.Active = true
+OpenButton.ZIndex = 10
+OpenButton.Parent = ScreenGui
 
-local UICorner1 = Instance.new("UICorner")
-UICorner1.CornerRadius = UDim.new(0, 8)
-UICorner1.Parent = ToggleButton
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0) 
+OpenCorner.Parent = OpenButton
 
--- NÚT 2: Bật/Tắt Auto Skill Z (Nằm dưới nút 1)
-local AutoSkillButton = Instance.new("TextButton")
-AutoSkillButton.Parent = ScreenGui
-AutoSkillButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-AutoSkillButton.Position = UDim2.new(0, 20, 0, 100)
-AutoSkillButton.Size = UDim2.new(0, 140, 0, 40)
-AutoSkillButton.Font = Enum.Font.GothamBold
-AutoSkillButton.Text = "Bật Auto Control (Z)"
-AutoSkillButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoSkillButton.TextSize = 13
-AutoSkillButton.Active = true
-AutoSkillButton.Draggable = true
-AutoSkillButton.ZIndex = 2 
+-- 3. Cửa sổ Menu chính
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 260, 0, 240) -- Tăng chiều cao thêm một chút
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -120)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Draggable = true
+MainFrame.Active = true
+MainFrame.Visible = false
+MainFrame.ZIndex = 10
+MainFrame.Parent = ScreenGui
 
-local UICorner2 = Instance.new("UICorner")
-UICorner2.CornerRadius = UDim.new(0, 8)
-UICorner2.Parent = AutoSkillButton
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
 
-local isOptimized = false
-local isAutoSkill = false
+-- Tiêu đề Menu
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "NVT VIP HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.ZIndex = 11
+Title.Parent = MainFrame
 
--- 3. Hàm siêu dọn rác
-local function OptimizeRAM()
-    Lighting.GlobalShadows = false
-    for _, v in pairs(Lighting:GetChildren()) do
-        if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
-            v:Destroy()
+local TitleLine = Instance.new("Frame")
+TitleLine.Size = UDim2.new(1, 0, 0, 2)
+TitleLine.Position = UDim2.new(0, 0, 0, 40)
+TitleLine.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+TitleLine.BorderSizePixel = 0
+TitleLine.ZIndex = 11
+TitleLine.Parent = MainFrame
+
+-- THÔNG SỐ PING & FPS
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Size = UDim2.new(1, 0, 0, 20)
+StatsLabel.Position = UDim2.new(0, 0, 0, 45) -- Nằm ngay dưới vạch xanh
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Text = "FPS: ... | Ping: ..."
+StatsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatsLabel.Font = Enum.Font.GothamSemibold
+StatsLabel.TextSize = 12
+StatsLabel.ZIndex = 11
+StatsLabel.Parent = MainFrame
+
+-- ================= CHỨC NĂNG & NÚT BẤM ================= --
+
+local function CreateToggle(yPos, text, callback)
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Size = UDim2.new(0.9, 0, 0, 38)
+    ToggleBtn.Position = UDim2.new(0.05, 0, 0, yPos)
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ToggleBtn.Text = text
+    ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ToggleBtn.Font = Enum.Font.GothamSemibold
+    ToggleBtn.TextSize = 13
+    ToggleBtn.ZIndex = 11
+    ToggleBtn.Parent = MainFrame
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = ToggleBtn
+
+    local state = false
+    ToggleBtn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
+            ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
         end
-    end
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
-            v.Material = Enum.Material.SmoothPlastic
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            v:Destroy()
-        end
-    end
+        callback(state)
+    end)
 end
 
--- 4. Vòng lặp Auto dùng chiêu Z của Control mỗi 30s
-task.spawn(function()
-    local player = Players.LocalPlayer
-    while task.wait(30) do
-        -- Chỉ hoạt động khi bạn bấm nút bật Auto (Nút 2)
-        if isAutoSkill then 
-            local character = player.Character
-            if character then
-                local humanoid = character:FindFirstChild("Humanoid")
-                
-                -- Tìm Control trong balo hoặc tay
-                local tool = nil
-                for _, v in pairs(player.Backpack:GetChildren()) do
-                    if v.Name:match("Control") then tool = v break end
-                end
-                if not tool then
-                    for _, v in pairs(character:GetChildren()) do
-                        if v.Name:match("Control") then tool = v break end
-                    end
-                end
-                
-                if humanoid and tool then
-                    humanoid:EquipTool(tool)
-                    task.wait(0.5) 
-                    
-                    -- Bấm phím Z
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                    task.wait(0.1)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
-                end
+local isAutoZ = false
+
+-- Nút 1: Màn Đen & Dọn RAM
+CreateToggle(75, "Bật Màn Đen & Dọn RAM (5 FPS)", function(state)
+    if state then
+        Lighting.GlobalShadows = false
+        for _, v in pairs(Lighting:GetChildren()) do
+            if v:IsA("PostEffect") then v:Destroy() end
+        end
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+                v.Material = Enum.Material.SmoothPlastic
+            elseif v:IsA("Texture") or v:IsA("Decal") then
+                v:Destroy()
             end
         end
-    end
-end)
-
--- 5. Lệnh thực thi Nút 1 (Đen màn hình)
-ToggleButton.MouseButton1Click:Connect(function()
-    isOptimized = not isOptimized
-    
-    if isOptimized then
-        OptimizeRAM() 
         setfpscap(5)
         RunService:Set3dRenderingEnabled(false)
-        settings().Rendering.QualityLevel = "Level01"
-        BlackFrame.Visible = true 
-        
-        ToggleButton.Text = "Bật lại 3D & 60 FPS"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40) -- Chuyển màu đỏ
+        settings().Rendering.QualityLevel = 1
+        BlackScreen.Visible = true
     else
-        setfpscap(60) 
+        setfpscap(60)
         RunService:Set3dRenderingEnabled(true)
-        settings().Rendering.QualityLevel = "Automatic" 
-        BlackFrame.Visible = false 
-        
-        ToggleButton.Text = "Tắt 3D & Dọn RAM"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        settings().Rendering.QualityLevel = "Automatic"
+        BlackScreen.Visible = false
     end
 end)
 
--- 6. Lệnh thực thi Nút 2 (Auto Z)
-AutoSkillButton.MouseButton1Click:Connect(function()
-    isAutoSkill = not isAutoSkill
+-- Nút 2: Auto Z Control
+CreateToggle(125, "Bật Auto Control (Chiêu Z)", function(state)
+    isAutoZ = state
+end)
+
+-- Nút 3: Đóng Menu
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0.9, 0, 0, 38)
+CloseBtn.Position = UDim2.new(0.05, 0, 0, 175)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseBtn.Text = "Ẩn Bảng Menu"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 13
+CloseBtn.ZIndex = 11
+CloseBtn.Parent = MainFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- ================= SỰ KIỆN & VÒNG LẶP ================= --
+
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
+
+-- Anti-AFK
+player.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+end)
+
+-- Cập nhật Live FPS & Ping
+RunService.RenderStepped:Connect(function(step)
+    local fps = math.floor(1 / step)
+    local ping = 0
+    pcall(function()
+        ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+    end)
     
-    if isAutoSkill then
-        AutoSkillButton.Text = "Đang Auto Z (Tắt)"
-        AutoSkillButton.BackgroundColor3 = Color3.fromRGB(40, 160, 40) -- Chuyển màu xanh lá
+    -- Đổi màu text nếu Ping quá cao hoặc FPS bị drop
+    if fps <= 15 then
+        StatsLabel.Text = "FPS: <font color='rgb(255,100,100)'>"..fps.."</font> | Ping: "..ping.."ms"
     else
-        AutoSkillButton.Text = "Bật Auto Control (Z)"
-        AutoSkillButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        StatsLabel.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
+    end
+    StatsLabel.RichText = true
+end)
+
+-- Vòng lặp Auto Z
+task.spawn(function()
+    while task.wait(30) do
+        if isAutoZ and player.Character then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            local tool = nil
+            
+            for _, v in pairs(player.Backpack:GetChildren()) do
+                if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then
+                    tool = v break
+                end
+            end
+            if not tool then
+                for _, v in pairs(player.Character:GetChildren()) do
+                    if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then
+                        tool = v break
+                    end
+                end
+            end
+            
+            if humanoid and tool then
+                humanoid:EquipTool(tool)
+                task.wait(1.5)
+                
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
+                task.wait(0.2)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+            end
+        end
     end
 end)
