@@ -1,210 +1,236 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
-local StarterGui = game:GetService("StarterGui")
+-- ========================================== --
+-- NVT VIP HUB - EXPERT EDITION (MOBILE OPTIMIZED)
+-- ========================================== --
 
-local player = Players.LocalPlayer
+task.wait(1) -- Đợi game ổn định luồng trước khi inject
 
--- ÉP BUỘC SỬ DỤNG PLAYERGUI (100% HIỂN THỊ)
-local guiParent = player:WaitForChild("PlayerGui")
+local Services = setmetatable({}, {
+    __index = function(_, service)
+        return game:GetService(service)
+    end
+})
 
--- Xóa Hub cũ tránh trùng lặp
-for _, v in pairs(guiParent:GetChildren()) do
-    if v.Name == "NVTVIP_Hub" then v:Destroy() end
+local Players = Services.Players
+local RunService = Services.RunService
+local Lighting = Services.Lighting
+local Workspace = Services.Workspace
+local VirtualInputManager = Services.VirtualInputManager
+local VirtualUser = Services.VirtualUser
+local Stats = Services.Stats
+local StarterGui = Services.StarterGui
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ================= HỆ THỐNG BYPASS UI ================= --
+local function GetSafeUIParent()
+    local success, parent = pcall(function() return gethui and gethui() end)
+    if success and parent then return parent end
+    
+    success, parent = pcall(function() return Services.CoreGui end)
+    if success and parent then return parent end
+    
+    return LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Thông báo
-pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "NVT VIP HUB",
-        Text = "Đã ép hiển thị UI thành công!",
-        Duration = 5
-    })
-end)
+local GuiParent = GetSafeUIParent()
 
--- ================= CẤU TRÚC GIAO DIỆN (UI) ================= --
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NVTVIP_Hub"
-ScreenGui.Parent = guiParent
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false -- Giữ UI không bị mất khi chết
+-- Xóa rác từ phiên bản cũ (nếu có)
+for _, child in ipairs(GuiParent:GetChildren()) do
+    if child.Name == "NVT_Expert_Hub" then
+        child:Destroy()
+    end
+end
 
+-- ================= KHỞI TẠO GIAO DIỆN ================= --
+local HubGui = Instance.new("ScreenGui")
+HubGui.Name = "NVT_Expert_Hub"
+HubGui.ResetOnSpawn = false
+HubGui.IgnoreGuiInset = true
+HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+HubGui.Parent = GuiParent
+
+-- Tấm rèm đen (tiết kiệm pin)
 local BlackScreen = Instance.new("Frame")
 BlackScreen.Size = UDim2.new(1, 0, 1, 0)
-BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackScreen.BackgroundColor3 = Color3.new(0, 0, 0)
 BlackScreen.Visible = false
-BlackScreen.ZIndex = 1
-BlackScreen.Parent = ScreenGui
+BlackScreen.ZIndex = 999
+BlackScreen.Parent = HubGui
 
--- Nút Logo NVT
-local OpenButton = Instance.new("TextButton")
-OpenButton.Size = UDim2.new(0, 45, 0, 45)
-OpenButton.Position = UDim2.new(0, 50, 0, 50) -- Dịch ra giữa một tí cho dễ thấy
-OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-OpenButton.Text = "NVT"
-OpenButton.TextColor3 = Color3.fromRGB(0, 255, 150)
-OpenButton.Font = Enum.Font.GothamBold
-OpenButton.TextSize = 14
-OpenButton.Draggable = true
-OpenButton.Active = true
-OpenButton.ZIndex = 999 -- Ép nổi lên trên cùng
-OpenButton.Parent = ScreenGui
-Instance.new("UICorner", OpenButton).CornerRadius = UDim.new(1, 0) 
+-- Hàm tiện ích tạo UI
+local function Create(className, properties)
+    local inst = Instance.new(className)
+    for k, v in pairs(properties) do inst[k] = v end
+    return inst
+end
 
--- Cửa sổ Menu
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 260, 0, 240) 
-MainFrame.Position = UDim2.new(0.5, -130, 0.5, -120)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Draggable = true
-MainFrame.Active = true
-MainFrame.Visible = false
-MainFrame.ZIndex = 999
-MainFrame.Parent = ScreenGui
+-- Nút mở Menu (NVT)
+local OpenBtn = Create("TextButton", {
+    Size = UDim2.new(0, 50, 0, 50),
+    Position = UDim2.new(0, 50, 0, 50), -- Đặt rõ ràng ở góc trái trên
+    BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+    Text = "NVT",
+    TextColor3 = Color3.fromRGB(0, 255, 128),
+    Font = Enum.Font.GothamBlack,
+    TextSize = 16,
+    Draggable = true,
+    Active = true,
+    ZIndex = 10000,
+    Parent = HubGui
+})
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+
+-- Khung Menu Chính
+local MainFrame = Create("Frame", {
+    Size = UDim2.new(0, 260, 0, 250),
+    Position = UDim2.new(0.5, -130, 0.5, -125),
+    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+    BorderSizePixel = 0,
+    Draggable = true,
+    Active = true,
+    Visible = false,
+    ZIndex = 10001,
+    Parent = HubGui
+})
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
--- Tiêu đề Menu
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundTransparency = 1
-Title.Text = "NVT VIP HUB"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.ZIndex = 1000
-Title.Parent = MainFrame
+-- Tiêu đề
+Create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 40),
+    BackgroundTransparency = 1,
+    Text = "NVT VIP HUB",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 18,
+    ZIndex = 10002,
+    Parent = MainFrame
+})
+Create("Frame", {
+    Size = UDim2.new(1, 0, 0, 2),
+    Position = UDim2.new(0, 0, 0, 40),
+    BackgroundColor3 = Color3.fromRGB(0, 255, 128),
+    BorderSizePixel = 0,
+    ZIndex = 10002,
+    Parent = MainFrame
+})
 
-local TitleLine = Instance.new("Frame")
-TitleLine.Size = UDim2.new(1, 0, 0, 2)
-TitleLine.Position = UDim2.new(0, 0, 0, 40)
-TitleLine.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-TitleLine.BorderSizePixel = 0
-TitleLine.ZIndex = 1000
-TitleLine.Parent = MainFrame
+-- Hiển thị FPS & Ping (Tránh lỗi chia 0)
+local StatsLabel = Create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 20),
+    Position = UDim2.new(0, 0, 0, 45),
+    BackgroundTransparency = 1,
+    Text = "Loading Stats...",
+    TextColor3 = Color3.fromRGB(150, 150, 150),
+    Font = Enum.Font.GothamSemibold,
+    TextSize = 12,
+    RichText = true,
+    ZIndex = 10002,
+    Parent = MainFrame
+})
 
--- THÔNG SỐ PING & FPS
-local StatsLabel = Instance.new("TextLabel")
-StatsLabel.Size = UDim2.new(1, 0, 0, 20)
-StatsLabel.Position = UDim2.new(0, 0, 0, 45) 
-StatsLabel.BackgroundTransparency = 1
-StatsLabel.Text = "FPS: ... | Ping: ..."
-StatsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-StatsLabel.Font = Enum.Font.GothamSemibold
-StatsLabel.TextSize = 12
-StatsLabel.ZIndex = 1000
-StatsLabel.Parent = MainFrame
+-- ================= LOGIC NÚT BẤM ================= --
+local State = { Optimize = false, AutoZ = false }
 
--- ================= CHỨC NĂNG & NÚT BẤM ================= --
-local function CreateToggle(yPos, text, callback)
-    local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.new(0.9, 0, 0, 38)
-    ToggleBtn.Position = UDim2.new(0.05, 0, 0, yPos)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    ToggleBtn.Text = text
-    ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    ToggleBtn.Font = Enum.Font.GothamSemibold
-    ToggleBtn.TextSize = 13
-    ToggleBtn.ZIndex = 1000
-    ToggleBtn.Parent = MainFrame
-    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+local function CreateToggle(yPos, text, varName, callback)
+    local btn = Create("TextButton", {
+        Size = UDim2.new(0.9, 0, 0, 40),
+        Position = UDim2.new(0.05, 0, 0, yPos),
+        BackgroundColor3 = Color3.fromRGB(35, 35, 35),
+        Text = text,
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        Font = Enum.Font.GothamSemibold,
+        TextSize = 14,
+        ZIndex = 10002,
+        Parent = MainFrame
+    })
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
-    local state = false
-    ToggleBtn.MouseButton1Click:Connect(function()
-        state = not state
-        ToggleBtn.BackgroundColor3 = state and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(40, 40, 40)
-        ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-        callback(state)
+    btn.MouseButton1Click:Connect(function()
+        State[varName] = not State[varName]
+        if State[varName] then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        task.spawn(callback, State[varName])
     end)
 end
 
-local isAutoZ = false
-
--- Nút 1: Màn Đen & Dọn RAM
-CreateToggle(75, "Bật Màn Đen & Dọn RAM (5 FPS)", function(state)
-    if state then
-        pcall(function() Lighting.GlobalShadows = false end)
-        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then pcall(function() v:Destroy() end) end end
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
-                pcall(function() v.Material = Enum.Material.SmoothPlastic end)
-            elseif v:IsA("Texture") or v:IsA("Decal") then
-                pcall(function() v:Destroy() end)
-            end
-        end
+-- Tính năng 1: Siêu tối ưu
+CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
+    BlackScreen.Visible = isOn
+    if isOn then
         pcall(function() setfpscap(5) end)
         pcall(function() RunService:Set3dRenderingEnabled(false) end)
         pcall(function() settings().Rendering.QualityLevel = 1 end)
-        BlackScreen.Visible = true
+        pcall(function() Lighting.GlobalShadows = false end)
     else
         pcall(function() setfpscap(60) end)
         pcall(function() RunService:Set3dRenderingEnabled(true) end)
         pcall(function() settings().Rendering.QualityLevel = "Automatic" end)
-        BlackScreen.Visible = false
     end
 end)
 
--- Nút 2: Auto Z Control
-CreateToggle(125, "Bật Auto Control (Chiêu Z)", function(state)
-    isAutoZ = state
-end)
+-- Tính năng 2: Auto Z
+CreateToggle(125, "Bật Auto Control (Z)", "AutoZ", function() end)
 
--- Nút 3: Đóng Menu
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0.9, 0, 0, 38)
-CloseBtn.Position = UDim2.new(0.05, 0, 0, 175)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-CloseBtn.Text = "Ẩn Bảng Menu"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 13
-CloseBtn.ZIndex = 1000
-CloseBtn.Parent = MainFrame
+-- Nút Đóng
+local CloseBtn = Create("TextButton", {
+    Size = UDim2.new(0.9, 0, 0, 40),
+    Position = UDim2.new(0.05, 0, 0, 185),
+    BackgroundColor3 = Color3.fromRGB(180, 50, 50),
+    Text = "Ẩn Menu Chính",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 14,
+    ZIndex = 10002,
+    Parent = MainFrame
+})
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
--- ================= SỰ KIỆN & VÒNG LẶP ================= --
-OpenButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
--- Anti-AFK
+-- ================= VÒNG LẶP HỆ THỐNG ================= --
+
+-- Anti AFK
 pcall(function()
-    local VirtualUser = game:GetService("VirtualUser")
-    player.Idled:Connect(function()
-        VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
     end)
 end)
 
--- FPS & Ping Update
-RunService.RenderStepped:Connect(function(step)
-    local fps = (step > 0) and math.floor(1 / step) or 0
+-- Cập nhật thông số FPS/Ping an toàn
+RunService.RenderStepped:Connect(function()
     local ping = 0
     pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
     
+    -- Dùng hàm GetRealPhysicsFPS để đo FPS chuẩn hơn trên điện thoại
+    local fps = math.floor(Workspace:GetRealPhysicsFPS())
+    
     if fps <= 15 then
-        StatsLabel.Text = "FPS: <font color='rgb(255,100,100)'>"..fps.."</font> | Ping: "..ping.."ms"
+        StatsLabel.Text = "FPS: <font color='rgb(255,80,80)'>"..fps.."</font> | Ping: "..ping.."ms"
     else
-        StatsLabel.Text = "FPS: "..fps.." | Ping: "..ping.."ms"
+        StatsLabel.Text = "FPS: <font color='rgb(80,255,80)'>"..fps.."</font> | Ping: "..ping.."ms"
     end
-    StatsLabel.RichText = true
 end)
 
--- Auto Z
+-- Vòng lặp Auto Z thông minh
 task.spawn(function()
-    local VirtualInputManager = game:GetService("VirtualInputManager")
     while task.wait(30) do
-        if isAutoZ and player.Character then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
+        if State.AutoZ and LocalPlayer.Character then
+            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             local tool = nil
             
-            for _, v in pairs(player.Backpack:GetChildren()) do
+            -- Quét kho đồ và trên tay
+            for _, v in ipairs(LocalPlayer.Backpack:GetChildren()) do
                 if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then tool = v break end
             end
             if not tool then
-                for _, v in pairs(player.Character:GetChildren()) do
+                for _, v in ipairs(LocalPlayer.Character:GetChildren()) do
                     if v:IsA("Tool") and string.find(string.lower(v.Name), "control") then tool = v break end
                 end
             end
@@ -212,12 +238,21 @@ task.spawn(function()
             if humanoid and tool then
                 pcall(function()
                     humanoid:EquipTool(tool)
-                    task.wait(1.5)
+                    task.wait(1.5) -- Cho game thời gian gắn tool vào tay
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                    task.wait(0.2)
+                    task.wait(0.1)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
                 end)
             end
         end
     end
+end)
+
+-- Gửi thông báo hoàn tất
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "NVT HUB ACTIVE",
+        Text = "Hệ thống đã chạy, vui lòng tìm nút NVT trên màn hình.",
+        Duration = 5
+    })
 end)
