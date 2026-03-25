@@ -1,4 +1,3 @@
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
@@ -9,16 +8,24 @@ local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
+-- Fix lỗi ẩn UI trên Executor điện thoại (Tự động chọn nơi an toàn để gắn Menu)
+local guiParent
+pcall(function() guiParent = game:GetService("CoreGui") end)
+if not guiParent or not pcall(function() local _ = guiParent.Name end) then
+    guiParent = player:WaitForChild("PlayerGui")
+end
+
 -- Xóa Hub cũ nếu có
-if CoreGui:FindFirstChild("NVTVIP_Hub") then
-    CoreGui.NVTVIP_Hub:Destroy()
+if guiParent:FindFirstChild("NVTVIP_Hub") then
+    guiParent.NVTVIP_Hub:Destroy()
 end
 
 -- ================= CẤU TRÚC GIAO DIỆN (UI) ================= --
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NVTVIP_Hub"
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = guiParent
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.ResetOnSpawn = false -- Giữ UI khi nhân vật chết
 
 -- 1. Tấm rèm đen
 local BlackScreen = Instance.new("Frame")
@@ -48,13 +55,13 @@ OpenCorner.Parent = OpenButton
 
 -- 3. Cửa sổ Menu chính
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 260, 0, 240) -- Tăng chiều cao thêm một chút
+MainFrame.Size = UDim2.new(0, 260, 0, 240) 
 MainFrame.Position = UDim2.new(0.5, -130, 0.5, -120)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Draggable = true
 MainFrame.Active = true
-MainFrame.Visible = false
+MainFrame.Visible = false -- Mặc định ẩn, chờ bấm nút NVT
 MainFrame.ZIndex = 10
 MainFrame.Parent = ScreenGui
 
@@ -84,7 +91,7 @@ TitleLine.Parent = MainFrame
 -- THÔNG SỐ PING & FPS
 local StatsLabel = Instance.new("TextLabel")
 StatsLabel.Size = UDim2.new(1, 0, 0, 20)
-StatsLabel.Position = UDim2.new(0, 0, 0, 45) -- Nằm ngay dưới vạch xanh
+StatsLabel.Position = UDim2.new(0, 0, 0, 45) 
 StatsLabel.BackgroundTransparency = 1
 StatsLabel.Text = "FPS: ... | Ping: ..."
 StatsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -191,15 +198,14 @@ player.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
 end)
 
--- Cập nhật Live FPS & Ping
+-- Cập nhật Live FPS & Ping (Đã fix an toàn)
 RunService.RenderStepped:Connect(function(step)
-    local fps = math.floor(1 / step)
+    local fps = (step > 0) and math.floor(1 / step) or 0
     local ping = 0
     pcall(function()
         ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
     end)
     
-    -- Đổi màu text nếu Ping quá cao hoặc FPS bị drop
     if fps <= 15 then
         StatsLabel.Text = "FPS: <font color='rgb(255,100,100)'>"..fps.."</font> | Ping: "..ping.."ms"
     else
