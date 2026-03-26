@@ -1,6 +1,6 @@
 -- ========================================== --
--- NVT VIP HUB (SUPER FAST AUTO Z)
--- Tích hợp: Đếm Server & Nguyên Liệu Farm Được
+-- NVT VIP HUB (SMART AUTO OPE X KIRORU)
+-- Tính năng: Nhận diện thanh năng lượng thông minh
 -- ========================================== --
 
 task.wait(1) 
@@ -76,7 +76,7 @@ local OpenBtn = Create("TextButton", {
 })
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
--- Khung Menu Chính (Kéo dài thêm để chứa Text mới)
+-- Khung Menu Chính
 local MainFrame = Create("Frame", {
     Size = UDim2.new(0, 280, 0, 275), 
     Position = UDim2.new(0.5, -140, 0.5, -137),
@@ -109,7 +109,7 @@ Create("Frame", {
     Parent = MainFrame
 })
 
--- Dòng 1: FPS | Ping | Server Count
+-- Thông số trực tiếp
 local StatsLabel = Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 20),
     Position = UDim2.new(0, 0, 0, 45),
@@ -123,7 +123,7 @@ local StatsLabel = Create("TextLabel", {
     Parent = MainFrame
 })
 
--- Dòng 2: Bộ đếm Nguyên Liệu
+-- Bộ đếm Nguyên Liệu
 local ItemStatsLabel = Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 20),
     Position = UDim2.new(0, 0, 0, 65),
@@ -166,8 +166,7 @@ local function CreateToggle(yPos, text, varName, callback)
     end)
 end
 
--- Nút 1: Màn Đen
-CreateToggle(95, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
+CreateToggle(95, "Màn Đen & 5 FPS", "Optimize", function(isOn)
     BlackScreen.Visible = isOn
     if isOn then
         pcall(function() setfpscap(5) end)
@@ -181,10 +180,9 @@ CreateToggle(95, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     end
 end)
 
--- Nút 2: Chức năng Farm
-CreateToggle(145, "Bật Farm Ope X Kiroru", "AutoZ", function() end)
+-- Chức năng Farm
+CreateToggle(145, "Bật Farm Ope X Kiroru (Thông minh)", "AutoZ", function() end)
 
--- Nút 3: Đóng Menu
 local CloseBtn = Create("TextButton", {
     Size = UDim2.new(0.9, 0, 0, 40),
     Position = UDim2.new(0.05, 0, 0, 205),
@@ -201,9 +199,63 @@ Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
+-- ================= HỆ THỐNG KIỂM TRA NĂNG LƯỢNG THÔNG MINH ================= --
+local function IsEnergyEmpty()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return true end -- Không có GUI thì ép chạy (trường hợp lỗi)
+
+    local foundEnergy = false
+    local isEmpty = false
+
+    -- Quét toàn bộ màn hình để tìm thanh năng lượng/room
+    for _, gui in pairs(playerGui:GetDescendants()) do
+        local name = string.lower(gui.Name)
+        if string.find(name, "room") or string.find(name, "energy") or string.find(name, "stamina") then
+            -- Chỉ kiểm tra những thanh đang hiển thị trên màn hình
+            if gui:IsA("GuiObject") and gui.AbsoluteSize.X > 0 and gui.AbsoluteSize.Y > 0 then
+                local isVisible = true
+                local parent = gui
+                while parent and parent:IsA("GuiObject") do
+                    if not parent.Visible then
+                        isVisible = false
+                        break
+                    end
+                    parent = parent.Parent
+                end
+
+                if isVisible then
+                    foundEnergy = true
+                    
+                    -- Nếu nó là cái thanh dải màu (Frame) -> Kiểm tra độ dài
+                    if gui:IsA("Frame") or gui:IsA("ImageLabel") then
+                        -- Nếu thanh năng lượng ngắn hơn 5% hoặc bé hơn 20 pixels -> Coi như đã hết
+                        if gui.Size.X.Scale <= 0.05 and gui.AbsoluteSize.X <= 20 then
+                            isEmpty = true
+                        end
+                    end
+                    
+                    -- Nếu nó là chữ (Ví dụ: 0/100) -> Kiểm tra số 0
+                    if gui:IsA("TextLabel") then
+                        if gui.Text == "0" or string.find(gui.Text, "^0/") then
+                            isEmpty = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- ĐIỀU KIỆN 1: Nếu hoàn toàn KHÔNG CÓ thanh năng lượng trên màn hình -> Trả về True để bật lại Room
+    if not foundEnergy then 
+        return true 
+    end
+    
+    -- ĐIỀU KIỆN 2: Nếu CÓ thanh năng lượng, nhưng nó đã cạn sạch -> Trả về True
+    return isEmpty
+end
+
 -- ================= VÒNG LẶP HỆ THỐNG CẬP NHẬT ================= --
 
--- Anti AFK
 pcall(function()
     LocalPlayer.Idled:Connect(function()
         VirtualUser:CaptureController()
@@ -211,53 +263,53 @@ pcall(function()
     end)
 end)
 
--- Bộ đếm vật phẩm (Mỗi khi có item rớt vào túi đồ sẽ cộng lên 1)
 local farmedItemsCount = 0
 pcall(function()
     LocalPlayer.Backpack.ChildAdded:Connect(function(item)
         farmedItemsCount = farmedItemsCount + 1
-        ItemStatsLabel.Text = "💎 Nguyên liệu đã farm: " .. farmedItemsCount
+        ItemStatsLabel.Text = "🗿 Nguyên liệu đã farm: " .. farmedItemsCount
     end)
 end)
 
--- Live Update (FPS, Ping, Số lượng người chơi)
 RunService.RenderStepped:Connect(function()
     local ping = 0
     pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
     local fps = math.floor(Workspace:GetRealPhysicsFPS())
-    
-    -- Lấy thông tin Server
     local currentPlayers = #Players:GetPlayers()
     local maxPlayers = Players.MaxPlayers
-    
     local fpsText = (fps <= 15) and "<font color='rgb(255,80,80)'>"..fps.."</font>" or "<font color='rgb(80,255,80)'>"..fps.."</font>"
-    
     StatsLabel.Text = "FPS: " .. fpsText .. " | Ping: " .. ping .. "ms | Server: " .. currentPlayers .. "/" .. maxPlayers
 end)
 
 -- ================= VÒNG LẶP FARM OPE X KIRORU ================= --
 task.spawn(function()
-    while task.wait(10) do 
+    while task.wait(1) do -- Chạy mỗi 1 giây để kiểm tra liên tục
         if State.AutoZ then
             pcall(function()
-                -- 1. Rút vũ khí ô số 1
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                task.wait(0.05)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-                
-                -- Đợi 0.2s để trang bị
-                task.wait(0.2) 
-                
-                -- 2. Dùng chiêu Z
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                task.wait(0.05)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
-                
-                -- 3. Click chuột nhả chiêu
-                task.wait(0.05)
-                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                task.wait(0.05)
-                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                -- Lấy quyết định từ hệ thống AI quét màn hình
+                if IsEnergyEmpty() then
+                    -- 1. Rút vũ khí ô số 1
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                    
+                    task.wait(0.3) -- Cho thêm chút thời gian cầm vũ khí lên
+                    
+                    -- 2. Dùng chiêu Z
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+                    
+                    -- 3. Click chuột nhả chiêu
+                    task.wait(0.1)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    task.wait(0.05)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    
+                    -- Đợi 3 giây để game kịp load thanh năng lượng mới lên màn hình, 
+                    -- tránh việc script tưởng nhầm là chưa có năng lượng và bấm đúp
+                    task.wait(3)
+                end
             end)
         end
     end
@@ -267,7 +319,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "NVT VIP HUB",
-        Text = "Hệ thống đã chạy, vui lòng tìm nút NVT trên màn hình.",
+        Text = "Hệ thống Farm Ope X Kiroru (Smart Logic) đã sẵn sàng!",
         Duration = 5
     })
 end)
