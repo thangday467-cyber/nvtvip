@@ -1,6 +1,6 @@
 -- ========================================== --
--- NVT VIP HUB - EXPERT EDITION (SIMPLIFIED AUTO Z)
--- Tối ưu hóa: Bấm phím 1 -> Bấm phím Z mỗi 10 giây
+-- NVT VIP HUB (SUPER FAST AUTO Z)
+-- Tích hợp: Đếm Server & Nguyên Liệu Farm Được
 -- ========================================== --
 
 task.wait(1) 
@@ -36,12 +36,12 @@ end
 local GuiParent = GetSafeUIParent()
 
 for _, child in ipairs(GuiParent:GetChildren()) do
-    if child.Name == "NVT_Expert_Hub" then child:Destroy() end
+    if child.Name == "NVT_VIP_Hub" then child:Destroy() end
 end
 
 -- ================= KHỞI TẠO GIAO DIỆN ================= --
 local HubGui = Instance.new("ScreenGui")
-HubGui.Name = "NVT_Expert_Hub"
+HubGui.Name = "NVT_VIP_Hub"
 HubGui.ResetOnSpawn = false
 HubGui.IgnoreGuiInset = true
 HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
@@ -60,6 +60,7 @@ local function Create(className, properties)
     return inst
 end
 
+-- Nút mở menu (NVT)
 local OpenBtn = Create("TextButton", {
     Size = UDim2.new(0, 50, 0, 50),
     Position = UDim2.new(0, 50, 0, 50), 
@@ -75,9 +76,10 @@ local OpenBtn = Create("TextButton", {
 })
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
+-- Khung Menu Chính (Kéo dài thêm để chứa Text mới)
 local MainFrame = Create("Frame", {
-    Size = UDim2.new(0, 260, 0, 250),
-    Position = UDim2.new(0.5, -130, 0.5, -125),
+    Size = UDim2.new(0, 280, 0, 275), 
+    Position = UDim2.new(0.5, -140, 0.5, -137),
     BackgroundColor3 = Color3.fromRGB(20, 20, 20),
     BorderSizePixel = 0,
     Draggable = true,
@@ -107,15 +109,29 @@ Create("Frame", {
     Parent = MainFrame
 })
 
+-- Dòng 1: FPS | Ping | Server Count
 local StatsLabel = Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 20),
     Position = UDim2.new(0, 0, 0, 45),
     BackgroundTransparency = 1,
-    Text = "Loading Stats...",
-    TextColor3 = Color3.fromRGB(150, 150, 150),
+    Text = "Đang tải thông số...",
+    TextColor3 = Color3.fromRGB(180, 180, 180),
     Font = Enum.Font.GothamSemibold,
     TextSize = 12,
     RichText = true,
+    ZIndex = 10002,
+    Parent = MainFrame
+})
+
+-- Dòng 2: Bộ đếm Nguyên Liệu
+local ItemStatsLabel = Create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 20),
+    Position = UDim2.new(0, 0, 0, 65),
+    BackgroundTransparency = 1,
+    Text = "💎 Nguyên liệu đã farm: 0",
+    TextColor3 = Color3.fromRGB(255, 200, 50),
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
     ZIndex = 10002,
     Parent = MainFrame
 })
@@ -150,7 +166,8 @@ local function CreateToggle(yPos, text, varName, callback)
     end)
 end
 
-CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
+-- Nút 1: Màn Đen
+CreateToggle(95, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     BlackScreen.Visible = isOn
     if isOn then
         pcall(function() setfpscap(5) end)
@@ -164,12 +181,13 @@ CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     end
 end)
 
--- Đổi tên nút thành 10 giây
-CreateToggle(125, "Bật Auto 1 & Z (10s)", "AutoZ", function() end)
+-- Nút 2: Chức năng Farm
+CreateToggle(145, "Bật Farm Ope X Kiroru", "AutoZ", function() end)
 
+-- Nút 3: Đóng Menu
 local CloseBtn = Create("TextButton", {
     Size = UDim2.new(0.9, 0, 0, 40),
-    Position = UDim2.new(0.05, 0, 0, 185),
+    Position = UDim2.new(0.05, 0, 0, 205),
     BackgroundColor3 = Color3.fromRGB(180, 50, 50),
     Text = "Ẩn Menu Chính",
     TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -183,8 +201,9 @@ Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
--- ================= VÒNG LẶP HỆ THỐNG ================= --
+-- ================= VÒNG LẶP HỆ THỐNG CẬP NHẬT ================= --
 
+-- Anti AFK
 pcall(function()
     LocalPlayer.Idled:Connect(function()
         VirtualUser:CaptureController()
@@ -192,39 +211,52 @@ pcall(function()
     end)
 end)
 
+-- Bộ đếm vật phẩm (Mỗi khi có item rớt vào túi đồ sẽ cộng lên 1)
+local farmedItemsCount = 0
+pcall(function()
+    LocalPlayer.Backpack.ChildAdded:Connect(function(item)
+        farmedItemsCount = farmedItemsCount + 1
+        ItemStatsLabel.Text = "💎 Nguyên liệu đã farm: " .. farmedItemsCount
+    end)
+end)
+
+-- Live Update (FPS, Ping, Số lượng người chơi)
 RunService.RenderStepped:Connect(function()
     local ping = 0
     pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
     local fps = math.floor(Workspace:GetRealPhysicsFPS())
-    if fps <= 15 then
-        StatsLabel.Text = "FPS: <font color='rgb(255,80,80)'>"..fps.."</font> | Ping: "..ping.."ms"
-    else
-        StatsLabel.Text = "FPS: <font color='rgb(80,255,80)'>"..fps.."</font> | Ping: "..ping.."ms"
-    end
+    
+    -- Lấy thông tin Server
+    local currentPlayers = #Players:GetPlayers()
+    local maxPlayers = Players.MaxPlayers
+    
+    local fpsText = (fps <= 15) and "<font color='rgb(255,80,80)'>"..fps.."</font>" or "<font color='rgb(80,255,80)'>"..fps.."</font>"
+    
+    StatsLabel.Text = "FPS: " .. fpsText .. " | Ping: " .. ping .. "ms | Server: " .. currentPlayers .. "/" .. maxPlayers
 end)
 
--- ================= VÒNG LẶP AUTO 1 VÀ Z ĐƠN GIẢN ================= --
+-- ================= VÒNG LẶP FARM OPE X KIRORU ================= --
 task.spawn(function()
-    while task.wait(10) do -- Lặp lại mỗi 10 giây
+    while task.wait(10) do 
         if State.AutoZ then
             pcall(function()
-                -- 1. Giả lập bấm phím số 1 (Để trang bị đồ ở ô đầu tiên)
+                -- 1. Rút vũ khí ô số 1
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                task.wait(0.1)
+                task.wait(0.05)
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
                 
-                -- Đợi 1 giây cho nhân vật rút vũ khí ra xong
-                task.wait(1) 
+                -- Đợi 0.2s để trang bị
+                task.wait(0.2) 
                 
-                -- 2. Giả lập bấm phím Z (Kích hoạt chiêu thức)
+                -- 2. Dùng chiêu Z
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
-                task.wait(0.1)
+                task.wait(0.05)
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
                 
-                -- 3. Click chuột để nhả chiêu (dành cho chiêu cần định hướng)
-                task.wait(0.2)
+                -- 3. Click chuột nhả chiêu
+                task.wait(0.05)
                 VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                task.wait(0.1)
+                task.wait(0.05)
                 VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
             end)
         end
@@ -234,7 +266,7 @@ end)
 -- Gửi thông báo hoàn tất
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "NVT HUB ACTIVE",
+        Title = "NVT VIP HUB",
         Text = "Hệ thống đã chạy, vui lòng tìm nút NVT trên màn hình.",
         Duration = 5
     })
