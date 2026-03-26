@@ -1,9 +1,9 @@
 -- ========================================== --
--- NVT VIP HUB - EXPERT EDITION (BẢN SỬA LỖI HOÀN CHỈNH)
--- ĐƯỢC TỐI ƯU HÓA CHO CÁC TRÒ CHƠI CÓ HỆ THỐNG KỸ NĂNG DẠNG NÚT BẤM (image_0.png)
+-- NVT VIP HUB - EXPERT EDITION (SIMPLIFIED AUTO Z)
+-- Tối ưu hóa: Bấm phím 1 -> Bấm phím Z mỗi 10 giây
 -- ========================================== --
 
-task.wait(1) -- Đợi game ổn định luồng trước khi inject
+task.wait(1) 
 
 local Services = setmetatable({}, {
     __index = function(_, service)
@@ -15,9 +15,10 @@ local Players = Services.Players
 local RunService = Services.RunService
 local Lighting = Services.Lighting
 local Workspace = Services.Workspace
+local VirtualInputManager = Services.VirtualInputManager
+local VirtualUser = Services.VirtualUser
 local Stats = Services.Stats
 local StarterGui = Services.StarterGui
-local CoreGui = Services.CoreGui
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -26,7 +27,7 @@ local function GetSafeUIParent()
     local success, parent = pcall(function() return gethui and gethui() end)
     if success and parent then return parent end
     
-    success, parent = pcall(function() return game:GetService("CoreGui") end)
+    success, parent = pcall(function() return Services.CoreGui end)
     if success and parent then return parent end
     
     return LocalPlayer:WaitForChild("PlayerGui")
@@ -34,11 +35,8 @@ end
 
 local GuiParent = GetSafeUIParent()
 
--- Xóa rác từ phiên bản cũ (nếu có)
 for _, child in ipairs(GuiParent:GetChildren()) do
-    if child.Name == "NVT_Expert_Hub" then
-        child:Destroy()
-    end
+    if child.Name == "NVT_Expert_Hub" then child:Destroy() end
 end
 
 -- ================= KHỞI TẠO GIAO DIỆN ================= --
@@ -49,7 +47,6 @@ HubGui.IgnoreGuiInset = true
 HubGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 HubGui.Parent = GuiParent
 
--- Tấm rèm đen (tiết kiệm pin)
 local BlackScreen = Instance.new("Frame")
 BlackScreen.Size = UDim2.new(1, 0, 1, 0)
 BlackScreen.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -57,14 +54,12 @@ BlackScreen.Visible = false
 BlackScreen.ZIndex = 999
 BlackScreen.Parent = HubGui
 
--- Hàm tiện ích tạo UI
 local function Create(className, properties)
     local inst = Instance.new(className)
     for k, v in pairs(properties) do inst[k] = v end
     return inst
 end
 
--- Nút mở Menu (NVT)
 local OpenBtn = Create("TextButton", {
     Size = UDim2.new(0, 50, 0, 50),
     Position = UDim2.new(0, 50, 0, 50), 
@@ -80,7 +75,6 @@ local OpenBtn = Create("TextButton", {
 })
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
--- Khung Menu Chính
 local MainFrame = Create("Frame", {
     Size = UDim2.new(0, 260, 0, 250),
     Position = UDim2.new(0.5, -130, 0.5, -125),
@@ -94,7 +88,6 @@ local MainFrame = Create("Frame", {
 })
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
--- Tiêu đề
 Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 40),
     BackgroundTransparency = 1,
@@ -114,7 +107,6 @@ Create("Frame", {
     Parent = MainFrame
 })
 
--- Hiển thị FPS & Ping
 local StatsLabel = Create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 20),
     Position = UDim2.new(0, 0, 0, 45),
@@ -158,7 +150,6 @@ local function CreateToggle(yPos, text, varName, callback)
     end)
 end
 
--- Tính năng 1: Siêu tối ưu
 CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     BlackScreen.Visible = isOn
     if isOn then
@@ -173,10 +164,9 @@ CreateToggle(75, "Màn Đen & Ép 5 FPS", "Optimize", function(isOn)
     end
 end)
 
--- Tính năng 2: Auto Z
-CreateToggle(125, "Bật Auto Control (Z)", "AutoZ", function() end)
+-- Đổi tên nút thành 10 giây
+CreateToggle(125, "Bật Auto 1 & Z (10s)", "AutoZ", function() end)
 
--- Nút Đóng
 local CloseBtn = Create("TextButton", {
     Size = UDim2.new(0.9, 0, 0, 40),
     Position = UDim2.new(0.05, 0, 0, 185),
@@ -195,23 +185,17 @@ CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
 -- ================= VÒNG LẶP HỆ THỐNG ================= --
 
--- Anti AFK
 pcall(function()
-    local VirtualUser = game:GetService("VirtualUser")
     LocalPlayer.Idled:Connect(function()
-        VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
     end)
 end)
 
--- Cập nhật thông số FPS/Ping an toàn
 RunService.RenderStepped:Connect(function()
     local ping = 0
     pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-    
     local fps = math.floor(Workspace:GetRealPhysicsFPS())
-    
     if fps <= 15 then
         StatsLabel.Text = "FPS: <font color='rgb(255,80,80)'>"..fps.."</font> | Ping: "..ping.."ms"
     else
@@ -219,74 +203,30 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- VÒNG LẶP AUTO Z SIÊU CẤP (BẢN SỬA LỖI CHO TRÒ CHƠI DẠNGimage_0.png)
+-- ================= VÒNG LẶP AUTO 1 VÀ Z ĐƠN GIẢN ================= --
 task.spawn(function()
-    -- Hàm dò tìm nút 'Use Z' trong CoreGui hoặc PlayerGui bằng cách quét văn bản
-    local function FindSkillZButton()
-        local function Scan(parent)
-            if not parent then return nil end
-            for _, gui in ipairs(parent:GetDescendants()) do
-                -- Tìm các nút có văn bản là "Use"
-                if gui:IsA("TextButton") and gui.Text == "Use" then
-                    -- Kiểm tra xem nút này có nhãn 'Z' gần đó không
-                    -- Chúng ta quét các label anh em (siblings) của nút
-                    local foundZ = false
-                    local p = gui.Parent
-                    if p then
-                        for _, sibling in ipairs(p:GetChildren()) do
-                            if sibling:IsA("TextLabel") and sibling.Text == "Z" then
-                                foundZ = true
-                                break
-                            end
-                        end
-                    end
-
-                    if foundZ then
-                        return gui
-                    end
-                end
-            end
-            return nil
-        end
-
-        local btn = Scan(Services.CoreGui)
-        if not btn then btn = Scan(LocalPlayer:WaitForChild("PlayerGui")) end
-        return btn
-    end
-
-    local skillBtn = nil -- Cache button
-
-    while task.wait(30) do
+    while task.wait(10) do -- Lặp lại mỗi 10 giây
         if State.AutoZ then
-            -- Chỉ tìm nút một lần và cache lại
-            if not skillBtn then
-                skillBtn = FindSkillZButton()
-            end
-            
-            if skillBtn then
-                -- Ép buộc hệ thống thi triển chiêu
-                pcall(function()
-                    skillBtn:Click()
-                    -- Gửi thông báo Roblox
-                    StarterGui:SetCore("SendNotification", {
-                        Title = "Auto Skill",
-                        Text = "Đã thi triển chiêu Z!",
-                        Duration = 3
-                    })
-                end)
-            else
-                -- Không tìm thấy nút, bắn thông báo lỗi
-                pcall(function()
-                    StarterGui:SetCore("SendNotification", {
-                        Title = "Auto Skill (LỖI)",
-                        Text = "Không tìm thấy nút 'Use Z' trên màn hình!",
-                        Duration = 3
-                    })
-                end)
-            end
-        else
-            -- Reset cache khi tắt toggle
-            skillBtn = nil
+            pcall(function()
+                -- 1. Giả lập bấm phím số 1 (Để trang bị đồ ở ô đầu tiên)
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                
+                -- Đợi 1 giây cho nhân vật rút vũ khí ra xong
+                task.wait(1) 
+                
+                -- 2. Giả lập bấm phím Z (Kích hoạt chiêu thức)
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Z, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+                
+                -- 3. Click chuột để nhả chiêu (dành cho chiêu cần định hướng)
+                task.wait(0.2)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.1)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end)
         end
     end
 end)
